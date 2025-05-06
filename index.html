@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+ <html lang="en">
+ <head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>St. Patrick's Fundraiser Calendar</title>
+   <style>
+     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }
+     header { background: #006400; color: white; padding: 1em; text-align: center; font-size: 1.8em; }
+     .controls, .view-toggle { margin: 15px auto; text-align: center; }
+     button { margin: 5px; padding: 10px 20px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+     button:hover { opacity: 0.9; }
+     .calendar, .event-list { display: none; max-width: 1000px; margin: auto; background: white; border-radius: 10px; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+     .calendar.active, .event-list.active { display: block; }
+     table { width: 100%; border-collapse: collapse; }
+     th, td { border: 1px solid #ddd; text-align: left; padding: 10px; height: 100px; vertical-align: top; cursor: pointer; border-radius: 4px; }
+     th { background-color: #e0e0e0; }
+     .fundraiser { background-color: #b0f2b6; }
+     .biblical { background-color: #fff8b5; }
+     .national { background-color: #ffb5b5; }
+     #monthTitle { text-align: center; font-size: 1.8em; margin: 10px 0; font-weight: bold; }
+     .event-popup, .login-popup { position: fixed; top: 20%; left: 50%; transform: translateX(-50%); background: white; border: 1px solid #ccc; padding: 1em; z-index: 10; display: none; box-shadow: 0 0 10px rgba(0,0,0,0.2); border-radius: 10px; }
+     .event-popup input, .event-popup select, .login-popup input { margin-bottom: 10px; width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ccc; }
+     .download-button { background-color: #0074D9; color: white; }
+     .admin-button { background-color: #FF851B; color: white; }
+     .month-nav-button { background-color: #AAAAAA; color: white; }
+   </style>
+ </head>
+ <body>
+   <header>St. Patrick's Fundraiser Calendar</header>
+   <div class="controls">
+     <button class="month-nav-button" onclick="prevMonth()">&lt; Prev</button>
+     <span id="monthTitle"></span>
+     <button class="month-nav-button" onclick="nextMonth()">Next &gt;</button>
+     <button onclick="switchView('month')">Month View</button>
+     <button onclick="switchView('list')">Upcoming Events</button>
+     <button class="admin-button" onclick="showLoginPopup()">Log in as Admin</button>
+     <button class="download-button" onclick="downloadPDF()">Download PDF</button>
+   </div>
+   <div id="monthView" class="calendar active"></div>
+   <div id="listView" class="event-list">
+     <ul id="eventList"></ul>
+   </div>
+   <div id="eventPopup" class="event-popup">
+     <h3>Manage Event</h3>
+     <input type="text" id="eventTitle" placeholder="Event Title" />
+     <select id="eventType">
+       <option value="fundraiser">Fundraiser</option>
+       <option value="biblical">Biblical</option>
+       <option value="national">National/Cultural</option>
+     </select>
+     <button onclick="saveEvent()">Save</button>
+     <button onclick="deleteEvent()">Delete</button>
+     <button onclick="closePopup()">Cancel</button>
+   </div>
+   <div id="loginPopup" class="login-popup">
+     <h3>Admin Login</h3>
+     <input type="text" id="loginName" placeholder="Name" />
+     <input type="password" id="loginPass" placeholder="Password" />
+     <button onclick="checkLogin()">Login</button>
+     <button onclick="closeLoginPopup()">Cancel</button>
+   </div>
+ 
+   <script>
+     let currentMonth = new Date().getMonth();
+     let currentYear = new Date().getFullYear();
+     let isAdmin = false;
+     let events = {
+       "2025-5-15": { title: "May Food Fair Fundraiser", type: "fundraiser" },
+       "2025-6-12": { title: "June Gala Dinner", type: "fundraiser" },
+       "2025-7-20": { title: "July Youth Raffle", type: "fundraiser" },
+       "2025-3-30": { title: "Good Friday", type: "biblical" },
+       "2025-4-1": { title: "Easter Sunday", type: "biblical" },
+       "2025-4-17": { title: "Ascension Day", type: "biblical" },
+       "2025-5-25": { title: "Pentecost", type: "biblical" },
+       "2025-6-8": { title: "Trinity Sunday", type: "biblical" },
+       "2025-1-1": { title: "New Year's Day", type: "national" },
+       "2025-3-21": { title: "Human Rights Day", type: "national" },
+       "2025-7-1": { title: "Sir Seretse Khama Day", type: "national" },
+       "2025-9-30": { title: "Botswana Day", type: "national" }
+     };
+ 
+     function switchView(view) {
+       document.getElementById('monthView').classList.remove('active');
+       document.getElementById('listView').classList.remove('active');
+       if (view === 'month') {
+         document.getElementById('monthView').classList.add('active');
+       } else {
+         renderListView();
+         document.getElementById('listView').classList.add('active');
+       }
+     }
+ 
+     function showLoginPopup() {
+       document.getElementById("loginPopup").style.display = 'block';
+     }
+ 
+     function closeLoginPopup() {
+       document.getElementById("loginPopup").style.display = 'none';
+     }
+ 
+     function checkLogin() {
+       const name = document.getElementById("loginName").value;
+       const pass = document.getElementById("loginPass").value;
+       if (name === "Cantona" && pass === "qwertyuiop") {
+         isAdmin = true;
+         alert("Admin Mode: ON");
+       } else {
+         alert("Invalid credentials");
+       }
+       closeLoginPopup();
+     }
+ 
+     function prevMonth() {
+       currentMonth--;
+       if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+       renderCalendar();
+     }
+ 
+     function nextMonth() {
+       currentMonth++;
+       if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+       renderCalendar();
+     }
+ 
+     function renderCalendar() {
+       const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+       const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+       document.getElementById("monthTitle").textContent = `${monthNames[currentMonth]} ${currentYear}`;
+ 
+       let firstDay = new Date(currentYear, currentMonth, 1).getDay();
+       let daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+       let html = '<table><thead><tr>';
+       for (let day of daysOfWeek) html += `<th>${day}</th>`;
+       html += '</tr></thead><tbody><tr>';
+ 
+       for (let i = 0; i < firstDay; i++) html += '<td></td>';
+       for (let day = 1; day <= daysInMonth; day++) {
+         let dateKey = `${currentYear}-${currentMonth + 1}-${day}`;
+         let className = events[dateKey] ? events[dateKey].type : '';
+         let display = events[dateKey] ? `<br>${events[dateKey].title}` : '';
+         html += `<td class="${className}" onclick="handleDateClick('${dateKey}')">${day}${display}</td>`;
+         if ((firstDay + day) % 7 === 0) html += '</tr><tr>';
+       }
+       html += '</tr></tbody></table>';
+       document.getElementById("monthView").innerHTML = html;
+     }
+ 
+     function handleDateClick(dateKey) {
+       if (isAdmin) {
+         document.getElementById("eventPopup").style.display = 'block';
+         document.getElementById("eventPopup").dataset.date = dateKey;
+         if (events[dateKey]) {
+           document.getElementById("eventTitle").value = events[dateKey].title;
+           document.getElementById("eventType").value = events[dateKey].type;
+         } else {
+           document.getElementById("eventTitle").value = "";
+           document.getElementById("eventType").value = "fundraiser";
+         }
+       } else if (events[dateKey]) {
+         alert(`${dateKey}: ${events[dateKey].title}`);
+       }
+     }
+ 
+     function saveEvent() {
+       const dateKey = document.getElementById("eventPopup").dataset.date;
+       const title = document.getElementById("eventTitle").value;
+       const type = document.getElementById("eventType").value;
+       events[dateKey] = { title, type };
+       closePopup();
+       renderCalendar();
+     }
+ 
+     function deleteEvent() {
+       const dateKey = document.getElementById("eventPopup").dataset.date;
+       delete events[dateKey];
+       closePopup();
+       renderCalendar();
+     }
+ 
+     function closePopup() {
+       document.getElementById("eventPopup").style.display = 'none';
+     }
+ 
+     function renderListView() {
+       const list = document.getElementById("eventList");
+       list.innerHTML = '';
+       for (const [date, event] of Object.entries(events)) {
+         const li = document.createElement("li");
+         li.className = event.type;
+         li.textContent = `${date}: ${event.title}`;
+         list.appendChild(li);
+       }
+     }
+ 
+     function downloadPDF() {
+       window.print();
+     }
+ 
+     renderCalendar();
+   </script>
+ </body>
+ </html>
